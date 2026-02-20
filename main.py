@@ -1,44 +1,45 @@
 """
-pyasar CLI
-==========
+pyasar – standalone entry-point
+================================
 
-Usage examples
---------------
-List archive contents::
+This module provides a CLI for working with Electron .asar archives.
+It can also be run directly::
 
-    pyasar list app.asar
+    python main.py list app.asar
+    python main.py extract app.asar ./out
+    python main.py replace app.asar src/index.js ./new.js
+    python main.py patch patch.yaml
 
-List with sizes::
+See ``asar/cli.py`` for the full command reference.
 
-    pyasar list -l app.asar
+Patch config format (YAML)
+--------------------------
+The ``patch`` command reads a YAML config file with the following structure::
 
-Extract entire archive::
+    source: path/to/input.asar       # archive to read from
+    dest:   path/to/output.asar      # archive to write to (may be the same as source)
+    files:
+      - archive: src/index.js        # path inside the archive to replace
+        source:  ./new-index.js      # replacement file on disk
+      - archive: package.json
+        source:  ./package.json
 
-    pyasar extract app.asar ./output-dir
-
-Extract a single file::
-
-    pyasar extract-file app.asar src/index.js ./index.js
-
-Replace a file inside the archive::
-
-    pyasar replace app.asar src/index.js ./new-index.js
-
-Replace a file and write to a new archive (non-destructive)::
-
-    pyasar replace app.asar src/index.js ./new-index.js --output patched.asar
-
-Pack a directory into an asar archive::
-
-    pyasar pack ./my-app app.asar
+* ``source`` and ``dest`` may point to the same file; the operation is always
+  atomic (write to a temp file, then rename).
+* Paths under ``files[*].source`` are resolved relative to the directory that
+  contains the YAML config file, so configs are fully portable.
+* All replacement files are validated **before** any writing begins, so the
+  archive is never left partially modified on error.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import struct
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
@@ -208,6 +209,71 @@ def cmd_pack(args: argparse.Namespace) -> None:
     print(f"Packed '{source}' → '{dest}'")
 
 
+def cmd_patch(args: argparse.Namespace) -> None:
+    """Apply a batch of file replacements described by a YAML config file."""
+    config_path = Path(args.config).resolve()
+    if not config_path.is_file():
+        _die(f"config file '{config_path}' not found.")
+
+    raw: Any = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        _die("config file must be a YAML mapping.")
+
+    # ---- validate required top-level keys --------------------------------
+    for key in ("source", "dest", "files"):
+        if key not in raw:
+            _die(f"config is missing required key '{key}'.")
+
+    config_dir = config_path.parent
+
+    def _resolve(p: str) -> Path:
+        path = Path(p)
+        return path if path.is_absolute() else (config_dir / path).resolve()
+
+    archive_source = _resolve(raw["source"])
+    archive_dest   = _resolve(raw["dest"])
+
+    if not archive_source.is_file():
+        _die(f"source archive '{archive_source}' not found.")
+
+    replacements = raw["files"]
+    if not isinstance(replacements, list) or not replacements:
+        _die("'files' must be a non-empty list.")
+
+    # ---- resolve and validate every entry before touching anything --------
+    validated: list[tuple[str, Path]] = []
+    for i, entry in enumerate(replacements, start=1):
+        if not isinstance(entry, dict):
+            _die(f"files[{i}]: each entry must be a mapping.")
+        for key in ("archive", "source"):
+            if key not in entry:
+                _die(f"files[{i}]: missing required key '{key}'.")
+        src = _resolve(entry["source"])
+        if not src.is_file():
+            _die(f"files[{i}]: source file '{src}' not found.")
+        validated.append((entry["archive"], src))
+
+    # ---- apply all replacements atomically --------------------------------
+    # Copy source → temp, apply each replacement in turn, then move to dest.
+    print(f"Source  : {archive_source}")
+    print(f"Dest    : {archive_dest}")
+    print(f"Patches : {len(validated)}\n")
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        working = Path(tmp_dir) / "working.asar"
+        shutil.copy2(archive_source, working)
+
+        for archive_path, src in validated:
+            with AsarArchive.open(working) as a:
+                a.replace_file(archive_path, src, output=working)
+            print(f"  patched  {archive_path}  ←  {src.name}")
+
+        archive_dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(working), archive_dest)
+
+    print(f"\nDone — wrote patched archive to '{archive_dest}'")
+
+
 # ------------------------------------------------------------------ #
 #  Argument parser                                                     #
 # ------------------------------------------------------------------ #
@@ -336,6 +402,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Overwrite ARCHIVE if it already exists.",
     )
     p_pack.set_defaults(func=cmd_pack)
+
+    # -- patch ----------------------------------------------------------
+    p_patch = subparsers.add_parser(
+        "patch",
+        help="Apply a batch of file replacements described by a YAML config file.",
+        description="Replace files in an archive according to a YAML config.",
+    )
+    p_patch.add_argument(
+        "config",
+        metavar="CONFIG",
+        help="Path to the YAML config file.",
+    )
+    p_patch.set_defaults(func=cmd_patch)
 
     return parser
 

@@ -20,6 +20,7 @@ A pure-Python library and command-line tool for reading, writing, and patching
   - [extract-file](#extract-file)
   - [replace](#replace)
   - [pack](#pack)
+  - [patch](#patch)
 - [Python API](#python-api)
   - [AsarArchive](#asararchive)
   - [Convenience functions](#convenience-functions)
@@ -187,6 +188,59 @@ pyasar pack ./my-app app.asar -f
 | Flag | Description |
 |------|-------------|
 | `-f`, `--force` | Overwrite `ARCHIVE` if it already exists |
+
+---
+
+### patch
+
+Batch-replace multiple files inside an archive in one atomic operation, driven
+by a YAML config file.  All replacement files are validated **before** any
+writing begins — the archive is never partially modified on error.
+
+```bash
+python main.py patch patch.yaml
+```
+
+**Config file format**
+
+```yaml
+source: path/to/input.asar       # archive to read from
+dest:   path/to/output.asar      # archive to write to (may equal source)
+files:
+  - archive: src/index.js        # path inside the archive to replace
+    source:  ./new-index.js      # replacement file on disk
+  - archive: package.json
+    source:  ./package.json
+```
+
+| Key | Description |
+|-----|-------------|
+| `source` | Path to the input `.asar` archive |
+| `dest` | Path for the patched output archive — may be the same as `source` for in-place patching |
+| `files` | List of replacement entries |
+| `files[].archive` | Archive-relative path of the file to replace (e.g. `src/index.js`) |
+| `files[].source` | Disk path of the replacement file, resolved relative to the config file's directory |
+
+**Notes**
+
+- `source` and `dest` may be the same path; the operation is always atomic
+  (all writes go to a temp file first, then the result is renamed into place).
+- Paths in `files[*].source` are resolved relative to the config file's
+  directory, so configs work regardless of the working directory.
+- The original archive is never touched until all validations pass.
+
+**Example output**
+
+```
+Source  : /path/to/app.asar
+Dest    : /path/to/app-patched.asar
+Patches : 2
+
+  patched  src/index.js  ←  new-index.js
+  patched  package.json  ←  package.json
+
+Done — wrote patched archive to '/path/to/app-patched.asar'
+```
 
 ---
 
