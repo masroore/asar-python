@@ -231,7 +231,7 @@ def cmd_patch(args: argparse.Namespace) -> None:
         return path if path.is_absolute() else (config_dir / path).resolve()
 
     archive_source = _resolve(raw["source"])
-    archive_dest   = _resolve(raw["dest"])
+    archive_dest = _resolve(raw["dest"])
 
     if not archive_source.is_file():
         _die(f"source archive '{archive_source}' not found.")

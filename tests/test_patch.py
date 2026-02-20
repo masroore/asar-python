@@ -1,4 +1,5 @@
 """End-to-end smoke test for the patch command."""
+
 import sys
 import tempfile
 from pathlib import Path
@@ -55,9 +56,8 @@ with tempfile.TemporaryDirectory() as d:
         pkg = (out_path / "." / "package.json").read_text()
         hlp = (out_path / "." / "sub" / "helper.js").read_text()
 
-        assert "patched" in idx,  f"index.js not patched: {idx!r}"
-        assert "2.0.0"   in pkg,  f"package.json not patched: {pkg!r}"
-        assert "helper"  in hlp,  f"helper.js unexpectedly modified: {hlp!r}"
+        assert "patched" in idx, f"index.js not patched: {idx!r}"
+        assert "2.0.0" in pkg, f"package.json not patched: {pkg!r}"
+        assert "helper" in hlp, f"helper.js unexpectedly modified: {hlp!r}"
 
     print("All assertions passed ✓")
-
