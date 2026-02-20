@@ -306,6 +306,5 @@ All other dependencies (`json`, `struct`, `xml.etree.ElementTree`, `pathlib`,
 
 ## License
 
-This project does not currently include a license file.  All rights reserved
-until one is added.
-
+This project is released under the MIT License — see the accompanying [LICENSE](LICENSE)
+file for the full text.

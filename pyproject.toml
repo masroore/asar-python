@@ -3,6 +3,7 @@ name = "pyasar"
 version = "0.1.0"
 description = "Python library and CLI for reading, writing and patching Electron .asar archives"
 requires-python = ">=3.13"
+license = { text = "MIT" }
 dependencies = [
     "pyyaml>=6.0.3",
 ]
