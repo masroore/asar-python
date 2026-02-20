@@ -7,7 +7,7 @@ import logging
 import shutil
 import struct
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class AsarArchive:
     def __init__(
         self,
         filename: Path,
-        asarfile: io.RawIOBase,
+        asarfile: IO[bytes],
         files: dict[str, Any],
         baseoffset: int,
     ) -> None:
