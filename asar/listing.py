@@ -178,9 +178,8 @@ def _render_yaml(entries: list[Entry]) -> str:
 
 _RENDERERS: dict[str, Any] = {
     "plain": _render_plain,
-    "long":  _render_long,
-    "json":  _render_json,
-    "xml":   _render_xml,
-    "yaml":  _render_yaml,
+    "long": _render_long,
+    "json": _render_json,
+    "xml": _render_xml,
+    "yaml": _render_yaml,
 }
-
