@@ -3,3 +3,4 @@ Name: pyasar
 Version: 0.1.0
 Summary: Python library and CLI for reading, writing and patching Electron .asar archives
 Requires-Python: >=3.13
+Requires-Dist: pyyaml>=6.0.3

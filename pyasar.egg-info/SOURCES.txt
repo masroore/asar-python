@@ -1,10 +1,12 @@
 pyproject.toml
 asar/__init__.py
 asar/archive.py
-asar/asar_py.py
 asar/cli.py
 pyasar.egg-info/PKG-INFO
 pyasar.egg-info/SOURCES.txt
 pyasar.egg-info/dependency_links.txt
 pyasar.egg-info/entry_points.txt
+pyasar.egg-info/requires.txt
 pyasar.egg-info/top_level.txt
+tests/test_asar.py
+tests/test_cli.py
