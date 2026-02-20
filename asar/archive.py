@@ -321,3 +321,80 @@ class AsarArchive:
 
         files = json.loads(header)
         return cls(path, asarfile, files, asarfile.tell())
+
+    @classmethod
+    def compress(cls, path: Path | str) -> AsarArchive:
+        """Pack a directory tree into an in-memory *.asar archive.
+
+        Args:
+            path: Root directory to pack.
+
+        Returns:
+            An :class:`AsarArchive` instance backed by an in-memory buffer.
+            Use as a context manager and call :meth:`save` or write
+            ``archive.asarfile`` yourself.
+        """
+        root = Path(path)
+        offset = 0
+        file_paths: list[Path] = []
+
+        def _dir_to_dict(directory: Path) -> dict[str, Any]:
+            nonlocal offset
+            result: dict[str, Any] = {"files": {}}
+            for entry in sorted(directory.iterdir()):
+                if entry.is_symlink():
+                    result["files"][entry.name] = {"link": str(entry.resolve())}
+                elif entry.is_dir():
+                    result["files"][entry.name] = _dir_to_dict(entry)
+                else:
+                    file_paths.append(entry)
+                    size = entry.stat().st_size
+                    result["files"][entry.name] = {"size": size, "offset": str(offset)}
+                    offset += size
+            return result
+
+        files = _dir_to_dict(root)
+        header_json = json.dumps(files, sort_keys=True, separators=(",", ":")).encode()
+        header_string_size = len(header_json)
+        data_size = 4
+        aligned_size = _round_up(header_string_size, data_size)
+        header_size = aligned_size + 8
+        header_object_size = aligned_size + data_size
+        diff = aligned_size - header_string_size
+        header_json_padded = header_json + b"\x00" * diff if diff else header_json
+
+        buf = io.BytesIO()
+        buf.write(
+            struct.pack(
+                "<4I", data_size, header_size, header_object_size, header_string_size
+            )
+        )
+        buf.write(header_json_padded)
+        for fp_path in file_paths:
+            buf.write(fp_path.read_bytes())
+
+        return cls(
+            filename=root,
+            asarfile=buf,
+            files=files,
+            baseoffset=_round_up(16 + header_string_size, 4),
+        )
+
+
+# ------------------------------------------------------------------ #
+#  Module-level convenience functions                                  #
+# ------------------------------------------------------------------ #
+
+
+def pack_asar(source: Path | str, dest: Path | str) -> None:
+    """Pack *source* directory into a new *.asar archive at *dest*."""
+    with AsarArchive.compress(source) as a:
+        buf = a.asarfile
+        buf.seek(0)
+        Path(dest).write_bytes(buf.read())
+
+
+def extract_asar(source: Path | str, dest: Path | str) -> None:
+    """Extract the *.asar archive at *source* into *dest*."""
+    with AsarArchive.open(source) as a:
+        a.extract(dest)

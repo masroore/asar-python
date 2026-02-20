@@ -27,8 +27,7 @@ import os as _os
 _os.chdir(Path(__file__).parent)
 sys.path.insert(0, str(Path(__file__).parent))
 
-from asar.archive import AsarArchive  # noqa: E402  (after sys.path tweak)
-from asar.asar_py import pack_asar
+from asar.archive import AsarArchive, pack_asar  # noqa: E402  (after sys.path tweak)
 
 
 # ------------------------------------------------------------------ #
