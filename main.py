@@ -130,7 +130,7 @@ def cmd_pack(args):
         sys.exit(1)
 
     # Delegate to the Asar.compress helper in asar_py
-    from .asar_py import pack_asar
+    from asar.asar_py import pack_asar
 
     pack_asar(source, dest)
     print(f"Packed '{source}' → '{dest}'")
