@@ -1,0 +1,13 @@
+[project]
+name = "pyasar"
+version = "0.1.0"
+description = "Python library and CLI for reading, writing and patching Electron .asar archives"
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+pyasar = "asar.cli:main"
+
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"

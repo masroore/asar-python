@@ -1,0 +1,2 @@
+[console_scripts]
+pyasar = asar.cli:main
