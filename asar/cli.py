@@ -8,6 +8,10 @@ List archive contents::
 
     pyasar list app.asar
 
+List with sizes::
+
+    pyasar list -l app.asar
+
 Extract entire archive::
 
     pyasar extract app.asar ./output-dir
@@ -29,41 +33,30 @@ Pack a directory into an asar archive::
     pyasar pack ./my-app app.asar
 """
 
+from __future__ import annotations
+
 import argparse
-import sys
-import os
-import struct
 import json
+import struct
+import sys
+from pathlib import Path
+from typing import Any
 
 from .archive import AsarArchive
 
 
 # ------------------------------------------------------------------ #
-#  Sub-command handlers                                                #
+#  Helpers                                                             #
 # ------------------------------------------------------------------ #
 
 
-def cmd_list(args):
-    """List all files contained in the archive."""
-    with AsarArchive.open(args.archive) as a:
-        files = a.list_files()
-
-    if not files:
-        print("(archive is empty)")
-        return
-
-    if args.long:
-        # Show size information alongside the path
-        with AsarArchive.open(args.archive) as a:
-            print(f"{'SIZE':>10}  PATH")
-            print("-" * 50)
-            _print_long(a.files["files"], "")
-    else:
-        for f in files:
-            print(f)
+def _die(message: str, code: int = 1) -> None:
+    """Print *message* to stderr and exit with *code*."""
+    print(f"Error: {message}", file=sys.stderr)
+    sys.exit(code)
 
 
-def _print_long(files_dict, prefix):
+def _print_long(files_dict: dict[str, Any], prefix: str) -> None:
     """Recursively print path + size for every file in *files_dict*."""
     for name, info in sorted(files_dict.items()):
         path = f"{prefix}/{name}" if prefix else name
@@ -71,66 +64,91 @@ def _print_long(files_dict, prefix):
             _print_long(info["files"], path)
         else:
             size = info.get("size", "?")
-            status = ""
-            if "offset" not in info:
-                status = "  [unpacked]"
+            status = "" if "offset" in info else "  [unpacked]"
             print(f"{str(size):>10}  {path}{status}")
 
 
-def cmd_extract(args):
-    """Extract all files from the archive to a directory."""
-    dest = args.destination
-    if os.path.exists(dest):
-        print(
-            f"Error: destination '{dest}' already exists. "
-            "Remove it first or choose a different path.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+# ------------------------------------------------------------------ #
+#  Sub-command handlers                                                #
+# ------------------------------------------------------------------ #
 
-    with AsarArchive.open(args.archive) as a:
+
+def cmd_list(args: argparse.Namespace) -> None:
+    """List all files contained in the archive."""
+    archive_path = Path(args.archive)
+
+    with AsarArchive.open(archive_path) as a:
+        files = a.list_files()
+        files_dict = a.files["files"] if args.long else None
+
+    if not files:
+        print("(archive is empty)")
+        return
+
+    if args.long:
+        print(f"{'SIZE':>10}  PATH")
+        print("-" * 50)
+        _print_long(files_dict, "")
+    else:
+        print("\n".join(files))
+
+
+def cmd_extract(args: argparse.Namespace) -> None:
+    """Extract all files from the archive to a directory."""
+    archive_path = Path(args.archive)
+    dest = Path(args.destination)
+
+    if dest.exists():
+        _die(
+            f"destination '{dest}' already exists. "
+            "Remove it first or choose a different path."
+        )
+
+    with AsarArchive.open(archive_path) as a:
         a.extract(dest)
 
-    print(f"Extracted '{args.archive}' → '{dest}'")
+    print(f"Extracted '{archive_path}' → '{dest}'")
 
 
-def cmd_extract_file(args):
+def cmd_extract_file(args: argparse.Namespace) -> None:
     """Extract a single file from the archive."""
-    with AsarArchive.open(args.archive) as a:
-        a.extract_file(args.file, args.destination)
+    archive_path = Path(args.archive)
+    dest = Path(args.destination)
 
-    print(f"Extracted '{args.file}' → '{args.destination}'")
+    with AsarArchive.open(archive_path) as a:
+        a.extract_file(args.file, dest)
+
+    print(f"Extracted '{args.file}' → '{dest}'")
 
 
-def cmd_replace(args):
+def cmd_replace(args: argparse.Namespace) -> None:
     """Replace a single file inside the archive."""
-    output = args.output  # may be None → overwrites in-place
-    with AsarArchive.open(args.archive) as a:
-        a.replace_file(args.file, args.source, output=output)
+    archive_path = Path(args.archive)
+    source_path = Path(args.source)
+    output_path = Path(args.output) if args.output else None
 
-    target = output or args.archive
+    if not source_path.is_file():
+        _die(f"source file '{source_path}' does not exist or is not a regular file.")
+
+    with AsarArchive.open(archive_path) as a:
+        a.replace_file(args.file, source_path, output=output_path)
+
+    target = output_path or archive_path
     print(f"Replaced '{args.file}' in '{target}'")
 
 
-def cmd_pack(args):
+def cmd_pack(args: argparse.Namespace) -> None:
     """Pack a directory into a new .asar archive."""
+    source = Path(args.source)
+    dest = Path(args.archive)
 
-    source = args.source
-    dest = args.archive
+    if not source.is_dir():
+        _die(f"source '{source}' is not a directory.")
 
-    if not os.path.isdir(source):
-        print(f"Error: source '{source}' is not a directory.", file=sys.stderr)
-        sys.exit(1)
+    if dest.exists() and not args.force:
+        _die(f"'{dest}' already exists. Use --force to overwrite.")
 
-    if os.path.exists(dest) and not args.force:
-        print(
-            f"Error: '{dest}' already exists. Use --force to overwrite.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    # Delegate to the Asar.compress helper in asar_py
-    from .asar_py import pack_asar
+    from .asar_py import pack_asar  # local import to keep startup fast
 
     pack_asar(source, dest)
     print(f"Packed '{source}' → '{dest}'")
@@ -141,7 +159,7 @@ def cmd_pack(args):
 # ------------------------------------------------------------------ #
 
 
-def build_parser():
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="pyasar",
         description="Utility for working with Electron .asar archives.",
@@ -224,7 +242,9 @@ def build_parser():
         help="Archive-relative path of the file to replace (e.g. src/index.js).",
     )
     p_rep.add_argument(
-        "source", metavar="SOURCE", help="Path on disk of the replacement file."
+        "source",
+        metavar="SOURCE",
+        help="Path on disk of the replacement file.",
     )
     p_rep.add_argument(
         "-o",
@@ -260,23 +280,19 @@ def build_parser():
 # ------------------------------------------------------------------ #
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
         args.func(args)
-    except FileNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-    except FileExistsError as e:
-        print(f"Error: destination already exists – {e}", file=sys.stderr)
-        sys.exit(1)
-    except OSError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-    except (ValueError, KeyError, struct.error, json.JSONDecodeError) as e:
-        print(f"Error: failed to parse archive – {e}", file=sys.stderr)
-        sys.exit(1)
+    except FileNotFoundError as exc:
+        _die(str(exc))
+    except FileExistsError as exc:
+        _die(f"destination already exists – {exc}")
+    except OSError as exc:
+        _die(str(exc))
+    except (ValueError, KeyError, struct.error, json.JSONDecodeError) as exc:
+        _die(f"failed to parse archive – {exc}")
     except KeyboardInterrupt:
         sys.exit(130)
 
