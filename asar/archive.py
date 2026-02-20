@@ -160,9 +160,7 @@ class AsarArchive:
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def _walk_files(
-        prefix: str, files_dict: dict[str, Any], result: list[str]
-    ) -> None:
+    def _walk_files(prefix: str, files_dict: dict[str, Any], result: list[str]) -> None:
         for name, info in files_dict.items():
             path = f"{prefix}/{name}" if prefix else name
             if "files" in info:

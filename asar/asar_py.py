@@ -88,9 +88,7 @@ class Asar:
             return result
 
         header = _dir_to_dict(root)
-        header_json = json.dumps(
-            header, sort_keys=True, separators=(",", ":")
-        ).encode()
+        header_json = json.dumps(header, sort_keys=True, separators=(",", ":")).encode()
         header_string_size = len(header_json)
         data_size = 4
         aligned_size = _round_up(header_string_size, data_size)

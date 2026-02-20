@@ -118,6 +118,7 @@ def cmd_pack(args: Any) -> None:
     if dest.exists() and not args.force:
         _die(f"'{dest}' already exists. Use --force to overwrite.")
     from asar.asar_py import pack_asar
+
     pack_asar(source, dest)
     print(f"Packed '{source}' → '{dest}'")
 
