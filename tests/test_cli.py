@@ -2,7 +2,7 @@
 
 import tempfile, os, struct, json, subprocess, sys
 
-PY = os.path.join(os.path.dirname(__file__), ".venv", "bin", "python3")
+PY = os.path.join(os.path.dirname(__file__), "../.venv", "bin", "python3")
 
 
 def make_asar(path):
