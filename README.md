@@ -1,4 +1,4 @@
-# pyasar
+# asar-python
 
 A pure-Python library and command-line tool for reading, writing, and patching
 [Electron `.asar` archives](https://github.com/electron/asar).
