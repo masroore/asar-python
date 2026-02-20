@@ -50,6 +50,17 @@ from asar.listing import FORMATS, ArchiveListing
 
 
 # ------------------------------------------------------------------ #
+#  Helpers                                                             #
+# ------------------------------------------------------------------ #
+
+
+def _die(message: str, code: int = 1) -> None:
+    """Print *message* to stderr and exit with *code*."""
+    print(f"Error: {message}", file=sys.stderr)
+    sys.exit(code)
+
+
+# ------------------------------------------------------------------ #
 #  Sub-command handlers                                                #
 # ------------------------------------------------------------------ #
 
