@@ -45,8 +45,7 @@ from typing import Any
 
 import yaml
 
-from asar import AsarArchive, pack_asar
-from asar.listing import FORMATS, ArchiveListing
+from asar import AsarArchive, pack_asar, FORMATS, ArchiveListing
 
 
 # ------------------------------------------------------------------ #
