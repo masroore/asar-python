@@ -1,6 +1,10 @@
 """CLI smoke tests."""
 
-import tempfile, os, struct, json, subprocess, sys
+import json
+import os
+import struct
+import subprocess
+import tempfile
 
 PY = os.path.join(os.path.dirname(__file__), "../.venv", "bin", "python3")
 

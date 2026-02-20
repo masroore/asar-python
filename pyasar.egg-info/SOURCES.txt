@@ -1,3 +1,5 @@
+LICENSE
+README.md
 pyproject.toml
 asar/__init__.py
 asar/archive.py
@@ -10,3 +12,4 @@ pyasar.egg-info/requires.txt
 pyasar.egg-info/top_level.txt
 tests/test_asar.py
 tests/test_cli.py
+tests/test_patch.py

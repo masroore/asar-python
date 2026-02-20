@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from asar import AsarArchive, pack_asar
-from main import build_parser, cmd_patch
+from ..main import build_parser, cmd_patch
 
 with tempfile.TemporaryDirectory() as d:
     root = Path(d)
